@@ -2,10 +2,7 @@ import { Catch, ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 
 import { RpcException } from '@nestjs/microservices';
 
-interface RpcError {
-  status: number;
-  message: string;
-}
+// Mejorable
 
 @Catch(RpcException)
 export class RpcCustomExceptionFilter implements ExceptionFilter {
@@ -13,14 +10,25 @@ export class RpcCustomExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
 
-    const rpcError: RpcError = exception.getError() as RpcError;
+    const rpcError = exception.getError();
+
+    if (rpcError.toString().includes('Empty response')) {
+      return response.status(500).json({
+        status: 500,
+        message: rpcError
+          .toString()
+          .substring(0, rpcError.toString().indexOf('(') - 1),
+      });
+    }
 
     if (
       typeof rpcError === 'object' &&
       'status' in rpcError &&
       'message' in rpcError
     ) {
-      const status = isNaN(+rpcError.status) ? 400 : +rpcError.status;
+      const status = isNaN(Number((rpcError as any).status))
+        ? 400
+        : Number((rpcError as any).status);
       return response.status(status).json(rpcError);
     }
 
